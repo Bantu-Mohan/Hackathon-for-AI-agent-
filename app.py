@@ -1,7 +1,9 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify
 from groq import Groq
 from dotenv import load_dotenv
 import markdown
+import json
+import re
 import os
 
 # Load environment variables
@@ -32,25 +34,72 @@ def ask_llm(prompt):
 
 
 # ---------------------------------
-# STEP GENERATOR
+# STEP GENERATOR (structured)
 # ---------------------------------
 
 def generate_steps(task):
     prompt = f"""
-Break this task into clear numbered steps.
+Break this task into clear numbered steps. Each step must have a title, explanation, and a list of detailed sub-steps.
 
 Task: {task}
 
-Return only numbered steps.
-Example:
+Return ONLY a valid JSON array. Each element must have "title", "explanation", and "substeps" (an array of strings).
+Each step should have 3-5 detailed sub-steps that break it down into small, actionable items.
 
-1. Step
-2. Step
-3. Step
+Example:
+[
+  {{
+    "title": "Install Python",
+    "explanation": "Download and install Python on your system to start programming.",
+    "substeps": [
+      "Go to python.org/downloads in your browser",
+      "Click the latest stable version download button",
+      "Run the installer and check 'Add Python to PATH'",
+      "Click Install Now and wait for completion"
+    ]
+  }},
+  {{
+    "title": "Verify Installation",
+    "explanation": "Confirm Python is properly installed and accessible from terminal.",
+    "substeps": [
+      "Open Command Prompt or Terminal",
+      "Type python --version and press Enter",
+      "Verify it shows the version number you installed",
+      "Type pip --version to confirm pip is also available"
+    ]
+  }}
+]
+
+Return ONLY the JSON array, no extra text.
 """
     result = ask_llm(prompt)
-    steps = result.split("\n")
-    steps = [s.strip() for s in steps if s.strip() != ""]
+
+    # Try to parse JSON from the response
+    try:
+        # Clean markdown code fences if present
+        cleaned = result.strip()
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+            cleaned = re.sub(r'\s*```$', '', cleaned)
+        steps = json.loads(cleaned)
+        if isinstance(steps, list) and len(steps) > 0:
+            return steps
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Fallback: parse numbered list
+    lines = result.split("\n")
+    steps = []
+    for line in lines:
+        line = line.strip()
+        if line and re.match(r'^\d+[\.\)]\s', line):
+            title = re.sub(r'^\d+[\.\)]\s*', '', line).strip()
+            steps.append({"title": title, "explanation": "", "substeps": []})
+
+    if not steps:
+        # Last resort: each non-empty line is a step
+        steps = [{"title": l.strip(), "explanation": "", "substeps": []} for l in lines if l.strip()]
+
     return steps
 
 
@@ -108,7 +157,28 @@ Mention:
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("login.html", env=get_supabase_env())
+
+
+@app.route("/login")
+def login():
+    return render_template("login.html", env=get_supabase_env())
+
+
+@app.route("/signup")
+def signup():
+    return render_template("signup.html", env=get_supabase_env())
+
+
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html", env=get_supabase_env())
+
+def get_supabase_env():
+    return {
+        "SUPABASE_URL": os.getenv("SUPABASE_URL", ""),
+        "SUPABASE_ANON_KEY": os.getenv("SUPABASE_ANON_KEY", "")
+    }
 
 
 @app.route("/api/generate-steps", methods=["POST"])

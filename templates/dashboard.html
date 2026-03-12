@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — AI Task Execution Agent</title>
+    <meta name="description"
+        content="AI-powered task execution dashboard with step-by-step guidance and progress tracking.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
+
+<body>
+    <!-- Background orbs -->
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TOP NAVBAR                                   -->
+    <!-- ============================================ -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-left">
+            <div class="nav-logo">
+                <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="40" height="40" rx="12" fill="url(#nav-logo-g)" />
+                    <path d="M12 28V16L20 12L28 16V28L20 24L12 28Z" stroke="white" stroke-width="2"
+                        stroke-linejoin="round" fill="none" />
+                    <path d="M20 12V24" stroke="white" stroke-width="2" />
+                    <circle cx="20" cy="18" r="2" fill="white" />
+                    <defs>
+                        <linearGradient id="nav-logo-g" x1="0" y1="0" x2="40" y2="40">
+                            <stop stop-color="#8B5CF6" />
+                            <stop offset="1" stop-color="#3B82F6" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <span class="nav-title">AI Task Execution Agent</span>
+        </div>
+        <div class="nav-right">
+            <span class="nav-user" id="navUserEmail"
+                style="margin-right: 12px; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 12px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span id="userEmailText">user@email.com</span>
+            </span>
+            <button class="btn-secondary nav-btn" id="historyBtn" onclick="toggleHistoryView()"
+                style="margin-right: 8px; padding: 6px 14px; font-size:0.8rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span>History</span>
+            </button>
+            <button class="btn-logout" id="logoutBtn" onclick="handleLogout()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                    <polyline points="16,17 21,12 16,7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ============================================ -->
+    <!-- MAIN LAYOUT                                  -->
+    <!-- ============================================ -->
+    <div class="dashboard-layout">
+        <!-- SIDEBAR: Progress Tracker -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-section glass-card">
+                <div class="sidebar-header">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+                    </svg>
+                    <h3>Progress Tracker</h3>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-percentage" id="progressPercentage">0%</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+                    </div>
+                    <div class="progress-count" id="progressCount">0 / 0 steps</div>
+                </div>
+                <div class="sidebar-steps" id="sidebarSteps">
+                    <p class="empty-state">No steps yet. Enter a task to begin.</p>
+                </div>
+            </div>
+
+            <!-- Mistake Log -->
+            <div class="sidebar-section glass-card" id="mistakeLogSection">
+                <button class="sidebar-header collapsible" id="mistakeToggle" onclick="toggleMistakeLog()">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        <h3>Mistake Log <span class="mistake-count" id="mistakeCount">(0)</span></h3>
+                    </div>
+                    <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <polyline points="6,9 12,15 18,9" />
+                    </svg>
+                </button>
+                <div class="mistake-list" id="mistakeList">
+                    <p class="empty-state">No mistakes logged yet.</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+
+            <!-- ====== PHASE 1: Task Input ====== -->
+            <section id="phaseInput">
+                <div class="hero">
+                    <h2 class="hero-title">
+                        Your AI mentor for
+                        <span class="gradient-text">task execution</span>
+                    </h2>
+                    <p class="hero-subtitle">
+                        Enter any task — the AI breaks it into steps, evaluates your work on each step,
+                        and gives you a strict final review.
+                    </p>
+                </div>
+
+                <div class="input-card glass-card">
+                    <div class="input-header">
+                        <div class="input-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+                            </svg>
+                        </div>
+                        <span>What task do you want to execute?</span>
+                    </div>
+                    <textarea id="taskInput"
+                        placeholder="e.g., Learn Python, Buy gaming laptop under 50000, Build a REST API..."
+                        rows="3"></textarea>
+                    <div class="input-footer">
+                        <span class="char-count" id="charCount">0 characters</span>
+                        <button id="startBtn" class="btn-primary" onclick="startTask()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polygon points="5,3 19,12 5,21" fill="currentColor" stroke="none" />
+                            </svg>
+                            <span>Generate Plan</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Example tasks -->
+                <div class="examples-section">
+                    <p class="examples-label">Try an example:</p>
+                    <div class="examples-grid">
+                        <button class="example-chip" onclick="fillExample(this)"><span class="chip-emoji">🐍</span>Learn
+                            Python</button>
+                        <button class="example-chip" onclick="fillExample(this)"><span class="chip-emoji">💻</span>Buy
+                            gaming laptop under 50000</button>
+                        <button class="example-chip" onclick="fillExample(this)"><span class="chip-emoji">🔧</span>Build
+                            a REST API</button>
+                        <button class="example-chip" onclick="fillExample(this)"><span
+                                class="chip-emoji">🎨</span>Design a landing page</button>
+                        <button class="example-chip" onclick="fillExample(this)"><span
+                                class="chip-emoji">📊</span>Analyze a dataset</button>
+                        <button class="example-chip" onclick="fillExample(this)"><span
+                                class="chip-emoji">🚀</span>Deploy to production</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== LOADING ====== -->
+            <section id="loadingSection" class="loading-section" style="display:none;">
+                <div class="loading-card glass-card">
+                    <div class="loading-spinner">
+                        <div class="spinner-ring"></div>
+                        <div class="spinner-ring ring-2"></div>
+                        <div class="spinner-ring ring-3"></div>
+                    </div>
+                    <h3 id="loadingTitle">Generating execution steps...</h3>
+                    <p id="loadingSubtitle">The AI is analyzing your task and crafting a plan.</p>
+                </div>
+            </section>
+
+            <!-- ====== PHASE 2: Step Planner + Execution ====== -->
+            <section id="phaseExecution" style="display:none;">
+                <!-- Steps plan overview -->
+                <div class="steps-plan glass-card" id="stepsPlan">
+                    <div class="steps-plan-header">
+                        <h3>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                <polyline points="14,2 14,8 20,8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                            </svg>
+                            Execution Plan
+                        </h3>
+                        <button class="btn-toggle" id="togglePlan" onclick="togglePlanView()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="6,9 12,15 18,9" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="steps-plan-list" id="stepsPlanList"></div>
+                </div>
+
+                <!-- Current step execution card -->
+                <div class="step-exec-card glass-card" id="stepExecCard">
+                    <div class="step-badge">
+                        <span id="stepBadge">STEP 1</span>
+                    </div>
+                    <h3 class="step-exec-title" id="stepExecTitle"></h3>
+                    <div class="step-explanation" id="stepExplanation"></div>
+
+                    <div class="step-input-area">
+                        <label for="stepResult">Describe what you did for this step:</label>
+                        <textarea id="stepResult" placeholder="Enter your work for this step..." rows="4"></textarea>
+                    </div>
+
+                    <div class="step-footer">
+                        <button class="btn-primary" id="submitStepBtn" onclick="submitStep()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M22 2L11 13" />
+                                <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                            </svg>
+                            <span>Submit Step</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Validation feedback -->
+                <div class="feedback-card glass-card" id="feedbackCard" style="display:none;">
+                    <div class="feedback-header" id="feedbackHeader">
+                        <div class="feedback-status" id="feedbackStatus">
+                            <span class="status-icon" id="statusIcon">🔍</span>
+                            <span id="statusText">AI Feedback</span>
+                        </div>
+                    </div>
+                    <div class="feedback-content" id="feedbackContent"></div>
+                    <div class="feedback-actions" id="feedbackActions"></div>
+                </div>
+            </section>
+
+            <!-- ====== PHASE 3: Final Review ====== -->
+            <section id="phaseFinal" style="display:none;">
+                <div class="final-header">
+                    <div class="trophy-icon">🏆</div>
+                    <h2>All Steps Completed!</h2>
+                    <p>Your AI mentor is preparing the final review...</p>
+                </div>
+
+                <div class="final-card glass-card" id="finalCard" style="display:none;">
+                    <div class="final-card-header">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                            <polyline points="14,2 14,8 20,8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                        </svg>
+                        <h3>Final Review</h3>
+                    </div>
+                    <div class="final-content" id="finalContent"></div>
+                    <div class="final-actions">
+                        <button class="btn-primary" onclick="startNewTask()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                            <span>Start New Task</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== PHASE 4: History ====== -->
+            <section id="phaseHistory" style="display:none;">
+                <div class="hero">
+                    <h2 class="hero-title">
+                        Your Task <span class="gradient-text">History</span>
+                    </h2>
+                    <p class="hero-subtitle">
+                        Review your past tasks and track your completion progress.
+                    </p>
+                </div>
+
+                <div class="history-controls" style="display:flex; justify-content:flex-end; margin-bottom: 20px;">
+                    <button class="btn-primary" onclick="startNewTask()"
+                        style="padding: 10px 20px; font-size: 0.85rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        <span>Start New Task</span>
+                    </button>
+                </div>
+
+                <div id="historyList" class="history-list">
+                    <!-- History cards will be injected here via JS -->
+                    <div class="loading-spinner" style="width: 30px; height: 30px;">
+                        <div class="spinner-ring"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Error -->
+            <section class="error-section" id="errorSection" style="display:none;">
+                <div class="error-card glass-card">
+                    <div class="error-icon">⚠️</div>
+                    <h3>Something went wrong</h3>
+                    <p id="errorMessage"></p>
+                    <button class="btn-secondary" onclick="hideError()">Try Again</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Built with <span class="heart">♥</span> using AI — Hackathon 2026</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>window.ENV = {{ env | tojson | safe }};</script>
+    <script src="{{ url_for('static', filename='supabase-config.js') }}"></script>
+    <script src="{{ url_for('static', filename='auth.js') }}"></script>
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+
+</html>
