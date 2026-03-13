@@ -1,4 +1,5 @@
 flask
+gunicorn
 groq
-markdown
 python-dotenv
+markdown
